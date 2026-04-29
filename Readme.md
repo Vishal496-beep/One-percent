@@ -1,5 +1,6 @@
 # dev-dependency 
 - `nodemon` - A utility that automatically restarts the server when file changes are detected, improving development workflow.
-- `eslint` - A tool for identifying and fixing problems in JavaScript code, ensuring code quality and consistency.
-- `prettier` - An opinionated code formatter that helps maintain a consistent style across the codebase, making it easier to read and maintain.
-- `jest` - A testing framework for JavaScript that allows developers to write and run tests, ensuring that the code works as expected and preventing regressions.   
+  
+
+# prettier
+Prettier is an opinionated code formatter that helps maintain a consistent style across the codebase. It automatically formats code according to a set of rules, making it easier to read and maintain. By using Prettier, developers can focus on writing code without worrying about formatting issues, as Prettier will handle it for them. This leads to cleaner code and a more efficient development process.
