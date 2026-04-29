@@ -1,0 +1,17 @@
+{
+  "name": "level-up",
+  "version": "1.0.0",
+  "description": "A web applicatiion for 1% better everyday",
+  "keywords": [
+    "javascript",
+    "backend",
+    "python"
+  ],
+  "license": "ISC",
+  "author": "vishal",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
