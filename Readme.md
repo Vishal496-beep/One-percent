@@ -22,3 +22,6 @@ Prettier is an opinionated code formatter that helps maintain a consistent style
 
 jwt is a bearer token yani ki ye password ki tarah hota hai, jab user login karta hai to server usko ek token deta hai jo ki uske credentials ko represent karta hai. Jab user kisi protected route ko access karta hai to wo token ko header me bhejta hai aur server us token ko verify karta hai. Agar token valid hota hai to user ko access mil jata hai otherwise access denied hota hai.
 
+# multer
+`multer` is a middleware for handling `multipart/form-data`, which is primarily used for uploading files in Node.js applications. It provides an easy way to handle file uploads by parsing incoming request data and storing the uploaded files on the server. With `multer`, developers can specify storage options, file size limits, and file type filters to ensure that only valid files are accepted. This library simplifies the process of handling file uploads and is commonly used in applications that require users to upload images, documents, or other types of files.
+   i used it in video.controller.js to handle video file uploads when users upload videos to the platform.
