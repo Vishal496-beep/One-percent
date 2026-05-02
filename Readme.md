@@ -25,3 +25,9 @@ jwt is a bearer token yani ki ye password ki tarah hota hai, jab user login kart
 # multer
 `multer` is a middleware for handling `multipart/form-data`, which is primarily used for uploading files in Node.js applications. It provides an easy way to handle file uploads by parsing incoming request data and storing the uploaded files on the server. With `multer`, developers can specify storage options, file size limits, and file type filters to ensure that only valid files are accepted. This library simplifies the process of handling file uploads and is commonly used in applications that require users to upload images, documents, or other types of files.
    i used it in video.controller.js to handle video file uploads when users upload videos to the platform.
+
+# fs 
+`fs` is a built-in Node.js module that provides an API for interacting with the file system. It allows developers to read, write, and manipulate files and directories on the server. With `fs`, you can perform various operations such as creating, deleting, and renaming files, as well as reading and writing data to files. This module is essential for handling file-related tasks in Node.js applications, such as managing uploaded files or storing data in files.
+   i used it in video.controller.js to delete video files from the server when a video is deleted from the database. and also to read video files when fetching them from the database. and also to read thumbnail images when fetching videos from the database.
+   unlink => is used to delete a file from the server. it takes the file path as an argument and deletes the file from the server. it is used in video.controller.js to delete video files and thumbnail images when a video is deleted from the database.
+
