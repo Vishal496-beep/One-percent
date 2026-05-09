@@ -4,6 +4,13 @@ import {ApiError} from "../utils/ApiError.js"
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 
+const generateAceessAndRefreshTokens = async (userId) => {
+   try {
+     const user  = await User.findById(userId)
+   } catch (error) {
+      throw new ApiError(500, "something went wrong while generating tokens")
+   }
+}
 
 const registerUser = asyncHandler(async (req, res) => {
     // Validate input
@@ -16,7 +23,7 @@ const registerUser = asyncHandler(async (req, res) => {
           console.log(req.body)
     // Check if user already exists
           const existingUser = await User.findOne({
-            $or:[{ email }, {username}]
+            $or:[{ email }, {username: username.toLowerCase() }]
           })
           console.log(existingUser)
     //if user exists, throw error
@@ -55,7 +62,33 @@ const registerUser = asyncHandler(async (req, res) => {
      .json(new ApiResponse(201, createdUser, "User registered successfully"))
 })
 
+const loginUser = asyncHandler(async(req,res) => {
+    // Validate input / req.body -> data le aao
+    // Generate tokens / access token and refresh token
+    // send cookies / refresh token in httpOnly cookie and access token in response body
+    // Return response
 
+      const {email, username, password} = req.body
+      if(!username || !password){
+        throw new ApiError(400, "Username and password are required")
+      }
+    // Check if user exists  
+   // email ya username se user ko find karo
+      const user = await User.findOne({
+        $or: [{email}, {username}]
+      })
+      if(!user){
+        throw new ApiError(404, "User not found")
+      }
+   // Compare password  / bcrypt se password compare karo
+      const isPasswordValid = await user.isPasswordCorrect(password)
+      if(!isPasswordValid){
+        throw new ApiError(401, "Invalid user credentials")
+      }
+   // Generate tokens / access token and refresh token
+
+
+})
 
 
 
@@ -65,5 +98,6 @@ const registerUser = asyncHandler(async (req, res) => {
 
 
 export {
-    registerUser
+    registerUser,
+    loginUser
 }
