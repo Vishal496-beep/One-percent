@@ -7,6 +7,11 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 const generateAceessAndRefreshTokens = async (userId) => {
    try {
      const user  = await User.findById(userId)
+     const accessToken = user.generateAccessToken()
+     const refreshToken = user.generateRefreshToken()
+     user.refreshToken = refreshToken
+     user.save({validateBeforeSave: false})
+      return {accessToken, refreshToken}
    } catch (error) {
       throw new ApiError(500, "something went wrong while generating tokens")
    }
@@ -86,7 +91,37 @@ const loginUser = asyncHandler(async(req,res) => {
         throw new ApiError(401, "Invalid user credentials")
       }
    // Generate tokens / access token and refresh token
+     const {accessToken, refreshToken} = await generateAceessAndRefreshTokens(user._id)
+    
+     const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
+   // Send cookies / refresh token in httpOnly cookie and access token in response body
+    
+   const cookieOptions = {
+    httpOnly: true,
+    secure: true// Set secure flag in production
+   }
 
+   return res
+   .status(200)
+    .cookie("refreshToken", refreshToken, cookieOptions)
+    .cookie("accessToken", accessToken, cookieOptions)
+    .json(
+      new ApiResponse(
+        200,
+        {
+          user,
+          accessToken,
+          refreshToken,
+          loggedInUser
+        },
+        "User logged in successfully"
+      )
+    )
+})
+
+const logoutUser = asyncHandler(async(req,res) => {
+    // Clear cookies / refresh token and access token
+    // Return response
 
 })
 
@@ -94,10 +129,8 @@ const loginUser = asyncHandler(async(req,res) => {
 
 
 
-
-
-
 export {
     registerUser,
-    loginUser
+    loginUser,
+    logoutUser
 }
