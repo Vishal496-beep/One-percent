@@ -122,6 +122,7 @@ const loginUser = asyncHandler(async(req,res) => {
 const logoutUser = asyncHandler(async(req,res) => {
     // Clear cookies / refresh token and access token
     // Return response
+    
 
 })
 
