@@ -274,9 +274,36 @@ const updateUserAvatar = asyncHandler(async(req,res) => {
     // Update user avatar in database
     // Return response
 
-    
+    const avatarLocalPath = req.file?.path
+    if(!avatarLocalPath){
+      throw new ApiError(400, "Avatar file is required")
+    }
+    // Upload new avatar to cloud storage and get the URL
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
+    if(!avatar.url){
+      throw new ApiError(400,"something went wrong while uploading avatar")
+    }
 
+    await User.findByIdAndUpdate(
+      req.user?._id,
+      {
+        $set:{
+          avatar: avatar.url
+        }
+      },
+      {
+        new: true
+      }
+    ).select("-password")
+    
+    return res
+    .status(200)
+    .json(
+      new ApiResponse(200, {avatar: avatar.url}, "User avatar updated successfully")
+    )
 })
+
+ 
 
 export {
     registerUser,
