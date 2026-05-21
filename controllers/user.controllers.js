@@ -163,7 +163,7 @@ const refreshAccessToken = asyncHandler(async(req,res) => {
            process.env.REFRESH_TOKEN_SECRET
          )
  
-         const user = await User.findById(decodedToken._id)
+         const user = await User.findById(decodedToken?._id)
          if(!user){
            throw new ApiError(401, " invalid refresh token")
          }
@@ -197,11 +197,94 @@ const refreshAccessToken = asyncHandler(async(req,res) => {
 
 })
 
+const changeCurrentPassword = asyncHandler(async(req,res) => {
+   // Get current password and new password from request body
+   // Validate input
+   // Check if current password is correct
+   // Update password with new password
+   // Return response
+   const {oldPassword, newPassword} = req.body
+   //find user in database
+   const user = await User.findById(req.user?._id)
+   //check if current password is correct
+   const isPasswordValid = await user.isPasswordCorrect(oldPassword)
+    if(!isPasswordValid){
+      throw new ApiError(401, "Invalid current password")
+    }
+    //update password with new password
+    user.password = newPassword
+    await user.save({validateBeforeSave: false})
 
+    return res
+    .status(200)
+    .json(
+      new ApiResponse(200, {}, "Password changed successfully")
+    )
+})
+
+
+const getCurrentUser = asyncHandler(async(req,res) => {
+    return res
+    .status(200)
+    .json(
+      new ApiResponse(200, req.user, "Current user details fetched successfully")
+    )
+})
+
+
+const updateUserDetails = asyncHandler(async(req,res) => {
+    // Get user details from request body
+    // Validate input
+    // Update user details in database
+    // Return response
+    const {fullname, email} = req.body
+    if([fullname, email].some((field) => field.trim() === "")){
+      throw new ApiError(400, "fullname and email are required")
+    }
+
+    //update user details in database
+    const user = await User.findByIdAndUpdate(
+      req.user?._id,
+      {
+         $set:{
+          fullname,
+          email
+         }
+      },
+      {
+        new: true
+      }
+    ).select("-password")
+
+    if(!user){
+        throw new ApiError(404, "User not found")
+    }
+    return res
+    .status(200)
+    .json(
+      new ApiResponse(200, user, "User details updated successfully")
+    )
+})
+
+
+const updateUserAvatar = asyncHandler(async(req,res) => {
+    // Get avatar file from request
+    // Validate input
+    // Upload new avatar to cloud storage and get the URL
+    // Update user avatar in database
+    // Return response
+
+    
+
+})
 
 export {
     registerUser,
     loginUser,
     logoutUser,
-    refreshAccessToken
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    updateUserDetails
+
 }
