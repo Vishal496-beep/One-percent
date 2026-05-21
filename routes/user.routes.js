@@ -16,6 +16,6 @@ router.route("/login").post(loginUser)
 //secured routes
 
 router.route("/logout").post(verifyJWT,logoutUser)
-router.route("/refresh-token").post( refreshAccessToken)  //this route is used to refresh the access token using the refresh token
+router.route("/refresh-token").post(refreshAccessToken)  //this route is used to refresh the access token using the refresh token
 
 export default router
