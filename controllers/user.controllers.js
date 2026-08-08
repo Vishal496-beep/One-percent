@@ -284,7 +284,7 @@ const updateUserAvatar = asyncHandler(async(req,res) => {
       throw new ApiError(400,"something went wrong while uploading avatar")
     }
 
-    await User.findByIdAndUpdate(
+    const user = await User.findByIdAndUpdate(
       req.user?._id,
       {
         $set:{
@@ -295,15 +295,69 @@ const updateUserAvatar = asyncHandler(async(req,res) => {
         new: true
       }
     ).select("-password")
-    
+    //delete previous avatar from cloud storage if exists
+      if(user?.avatar){
+        const publicId = user.avatar.split("/").pop().split(".")[0]
+        await deleteFromCloudinary(publicId)
+      }
     return res
     .status(200)
     .json(
-      new ApiResponse(200, {avatar: avatar.url}, "User avatar updated successfully")
+      new ApiResponse(200, user, "User avatar updated successfully")
     )
 })
 
- 
+
+const deleteUserAccount = asyncHandler(async(req,res) => {
+    // Delete user account from database
+    // Clear cookies / refresh token and access token
+    // Return response
+    const user = await User.findById(req.user?._id)
+    if(!user){
+      throw new ApiError(404, "User not found")
+    }
+    const deletedUser = await User.findByIdAndDelete(req.user?._id)
+    if(!deletedUser){
+      throw new ApiError(404, "User not found")
+    }
+    const cookieOptions = {
+      httpOnly: true,
+      secure: true
+    }
+    return res
+    .status(200)
+    .clearCookie("refreshToken", cookieOptions)
+    .clearCookie("accessToken", cookieOptions)
+    .json(
+      new ApiResponse(200, {}, "User account deleted successfully")
+    )
+})
+
+const getUserChannelProfile = asyncHandler(async(req,res) => {
+    // Get user details from database using userId from request params
+    // Return response with user details
+    const {username} = req.params
+    if(!username?.trim()){
+      throw new ApiError(400, "Username is required")
+    }
+
+    await User.aggregate([
+       {
+        $match: {
+          username: username?.toLowerCase()
+        }
+       },
+       {
+        $lookup: {
+          from: "follow",
+          localField: "_id",
+          foreignField: "user",
+          as: "videos"
+        }
+       }
+    ])
+
+})
 
 export {
     registerUser,
@@ -312,6 +366,7 @@ export {
     refreshAccessToken,
     changeCurrentPassword,
     getCurrentUser,
-    updateUserDetails
-
+    updateUserDetails,
+    getUserChannelProfile,
+    deleteUserAccount,
 }
