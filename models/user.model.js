@@ -50,7 +50,7 @@ userSchema.pre("save", async function(next){
    this.password = await bcrypt.hash(this.password, 10)  //10 is the salt rounds which means how many times we want to hash the password
    next
 })
-userSchema.methods.isPasswordCorrect = async function(password){
+userSchema.methods.dddddd = async function(password){
     return await bcrypt.compare(password, this.password)  //compare the password with the hashed password in the database
 }
 
