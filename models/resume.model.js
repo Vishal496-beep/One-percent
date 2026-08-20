@@ -74,11 +74,11 @@ const resumeSchema = new Schema(
                 trim: true
             }
         },
-        education: {
+        education: [{
            type: mongoose.Schema.Types.ObjectId,
            ref: "Education",
            required: true
-        },
+        }],
         isFresher: {
             type: Boolean,
             default: false
