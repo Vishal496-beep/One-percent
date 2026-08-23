@@ -35,9 +35,13 @@ const resumeSchema = new Schema(
             ref: "User",
             required: true
         },
-        templateId: {
+        template: {
             type: String,
             enum:  ["classic-ats", "modern-ats", "creative-ats"] 
+        },
+        summary: {
+            type:String,
+            trim: true
         },
         personalInfo: {
             fullName: {
