@@ -113,7 +113,7 @@ const resumeSchema = new Schema(
         languages: [
             {
                 name:{type: String, required:true, trim: true },
-                proficiency:{enum: ["Beginner", "Intermediate", "Advanced", "Fluent", "Native"], required:true },     
+                proficiency:{type: String,enum: ["Beginner", "Intermediate", "Advanced", "Fluent", "Native"], required:true },     
             }
         ],
         achievements: [{
@@ -126,3 +126,4 @@ const resumeSchema = new Schema(
     }, {timestamps: true}
 )
 
+export const Resume = mongoose.model("Resume", resumeSchema)
