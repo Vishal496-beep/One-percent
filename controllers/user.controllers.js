@@ -368,6 +368,7 @@ export {
     changeCurrentPassword,
     getCurrentUser,
     updateUserDetails,
+    updateUserAvatar,
     getUserChannelProfile,
     deleteUserAccount,
 }

@@ -97,16 +97,115 @@ const getUserResume = asyncHandler(async(req, res) => {
       if(!resume){
         throw new ApiError(404, "Resume not found")
       }
-      res.status(200).json(new ApiResponse(200, resume, resume.isPublic ? "Public resume fetched successfully" : "Private resume fetched successfully"))
+      return res.status(200).json(new ApiResponse(200, resume, "Resume fetched successfully"))
 })
 
 const getResumeById = asyncHandler(async(req,res) => {
+     //1. user should be logged in or signed in
+     //2. user should be able to get the resume by id
+     //3. user should be able to get the resume by id only if it is public or if the user is the owner of the resume
+     //4. response should be sent to the user with the resume details
+     //5. if the resume is not found, return 404 error
+    
+    const {resumeId} = req.params
+    const resume = await Resume.findOne(
+        {_id: resumeId,
+            $or: [{
+                isPublic: true,
+                owner: req.user._id
+            }]
+         })
+
+
+    if(!resume){
+        throw new ApiError(404, "Resume not found or you do not have permission to view it")
+    }
+    
+    return res
+    .status(200)
+    .json(new ApiResponse(
+        200,
+        resume,
+        "Resume fetched successfully"
+    ))
 
 })
+
+const updateResume = asyncHandler(async(req, res) => {
+    //1. user should be logged in or signed in
+    //2. user should be able to update the resume by id
+    //3. user should be able to update the resume by id only if the user is the owner of the resume
+    //4. response should be sent to the user with the updated resume details
+    //5. if the resume is not found, return 404 error
+    //6. if the user is not the owner of the resume, return 403 error
+    const userId = req.user?._id  // Get the user ID from the request object
+    const {id: resumeId} = req.params
+
+    //user should be loggedin
+    if(!userId){
+        throw new ApiError(401, "User not authenticated")
+    }
+
+    const resume = await Resume.findById(resumeId)
+    if(!resume) throw new ApiError(404, "Resume not found")
+
+    if(resume.owner.toString() !== userId.toString()){
+        throw new ApiError(403, "You do not have permission to update this resume")
+    }
+
+    // Update the resume with the new data from the request body like skills, education experience etc...
+    const updatedResume = await Resume.findByIdAndUpdate(
+        resumeId,
+        { 
+            $set: req.body
+        },
+        {
+            new: true, // Returns the modified document
+            runValidators: true // Triggers Schema validation on updates
+        }
+    )
+    if(!updatedResume) throw new ApiError(500, "Failed to update resume")
+    
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            updatedResume,
+            "Resume updated successfully"
+        )
+    )
+})
+
+
+const deleteResume = asyncHandler(async(req,res) => {
+    const userId = req.user?._id  // Get the user ID from the request object
+    const resumeId = req.params
+    if(!userId) throw new ApiError(401, "User not authenticated")
+    const deletedResume = await Resume.findOneAndDelete({_id: resumeId, owner:userId})
+    if(!deletedResume){
+     throw new ApiError(404, "Resume not found or you do not have permission to delete it")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(
+            200,
+            deletedResume,
+            "Resume deleted successfully"
+        )
+    )
+    
+})
+
 
 
 
 export {
     createResume,
-    getUserResume
+    getUserResume,
+    getResumeById,
+    updateResume,
+    deleteResume
 }
