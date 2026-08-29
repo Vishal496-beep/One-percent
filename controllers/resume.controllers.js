@@ -93,7 +93,7 @@ const createResume = asyncHandler(async(req, res) => {
 
 
 const getUserResume = asyncHandler(async(req, res) => {
-      const resume = await Resume.findOne({owner: req.user._id}).sort("-updatedAt").populate("education")
+      const resume = await Resume.findOne({owner: req.user?._id}).sort("-updatedAt").populate("education")
       if(!resume){
         throw new ApiError(404, "Resume not found")
       }
@@ -111,9 +111,10 @@ const getResumeById = asyncHandler(async(req,res) => {
     const resume = await Resume.findOne(
         {_id: resumeId,
             $or: [{
-                isPublic: true,
-                owner: req.user._id
-            }]
+               isPublic: true
+            },
+              {owner: req.user?._id}
+        ]
          })
 
 
@@ -180,13 +181,18 @@ const updateResume = asyncHandler(async(req, res) => {
 
 const deleteResume = asyncHandler(async(req,res) => {
     const userId = req.user?._id  // Get the user ID from the request object
-    const resumeId = req.params
+    const {id: resumeId} = req.params
     if(!userId) throw new ApiError(401, "User not authenticated")
     const deletedResume = await Resume.findOneAndDelete({_id: resumeId, owner:userId})
     if(!deletedResume){
      throw new ApiError(404, "Resume not found or you do not have permission to delete it")
     }
+    
+    if (deletedResume.education && deletedResume.education.length > 0) {
+        await Education.deleteMany({ _id: { $in: deletedResume.education } });
+    }
 
+    await deletedResume.deleteOne();
     return res
     .status(200)
     .json(
@@ -199,7 +205,54 @@ const deleteResume = asyncHandler(async(req,res) => {
     
 })
 
+const duplicateResume = asyncHandler(async(req, res) => {
+    //1. user should be logged in or signed in
+    //2. user should be able to duplicate the resume by id
+    //3. user should be able to duplicate the resume by id only if the user is the owner of the resume
+    //4. response should be sent to the user with the duplicated resume details
+    const userId = req.user?._id  // Get the user ID from the request object
+    const {id: resumeId} = req.params
 
+    const original = await Resume.findOne({ _id: resumeId, owner: req.user?._id})
+    if(!original){
+        throw new ApiError(404, "Resume not found or you do not have permission to duplicate it")
+    }
+
+    //create a new resume with the same data as the original
+    const duplicateData = original.toObject();
+
+    delete duplicateData._id //remove the _id field to create a new document
+    delete duplicateData.createdAt //remove the createdAt field to create a new document
+    delete duplicateData.updatedAt //remove the updatedAt field to create a new document
+
+    const newEducationIds = []
+    if(Array.isArray(duplicateData.education) && duplicateData.education.length > 0){
+        const cleanEducationList = duplicateData.education.map(({_id, createdAt, updatedAt, ...rest}) => rest)
+        const newEducation = await Education.insertMany(cleanEducationList)
+        newEducationIds = newEducation.map((edu) => edu._id)
+    }
+
+    duplicateData.education = newEducationIds
+    const subDocumentsArrays = ['experience', 'projects', 'certifications', 'languages', ]
+    subDocumentsArrays.forEach((key) => {
+        if(Array.isArray(duplicateData[key])){
+            duplicateData[key] = duplicateData[key].map(({_id, ...rest}) => rest)
+        }
+    })
+    const newResume = await Resume.create(duplicateData)
+    await newResume.populate("education")
+
+    return res
+    .status(201)
+    .json(
+        new ApiResponse(
+            201,
+            newResume,
+            "Resume duplicated successfully"
+        )
+
+    )
+})
 
 
 export {
@@ -207,5 +260,6 @@ export {
     getUserResume,
     getResumeById,
     updateResume,
-    deleteResume
+    deleteResume,
+    duplicateResume
 }
