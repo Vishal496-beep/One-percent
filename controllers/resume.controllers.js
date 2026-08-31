@@ -254,6 +254,42 @@ const duplicateResume = asyncHandler(async(req, res) => {
     )
 })
 
+const toggleResume = asyncHandler(async(req,res) => {
+    const {resumeId} = req.params
+    const resume = await Resume.findOne({id: resumeId, owner: req.user?._id})
+    if(!resume) throw ApiError(401, "resume not found")
+    
+    resume.isPublic = !resume.isPublic
+    await resume.save({validateBeforeUpdate: false})
+
+    return res
+    .status(201)
+    .json(
+        new ApiResponse(
+            201,
+            {isPublic : resume.isPublic},
+            `resume public status changed to ${resume.isPublic}`
+        )
+    )
+})
+
+const getPublicResume = asyncHandler(async(req, res) => {
+    const {resumeId} = req.params
+    const resume = await Resume.findOne({_id: resumeId, owner: req.user?._id})
+    .select("-owner")
+    .populate("education")
+
+    if(!resume) throw ApiError(401, "Public resume not found, or it is set to private")
+    
+    return res
+    .status(201)
+    .json(new ApiResponse(
+        201,
+        resume,
+        "Public resume fetched successfully"
+    ))
+
+})
 
 export {
     createResume,
@@ -261,5 +297,7 @@ export {
     getResumeById,
     updateResume,
     deleteResume,
-    duplicateResume
+    duplicateResume,
+    toggleResume,
+    getPublicResume
 }
