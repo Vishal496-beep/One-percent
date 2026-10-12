@@ -225,7 +225,7 @@ const duplicateResume = asyncHandler(async(req, res) => {
     delete duplicateData.createdAt //remove the createdAt field to create a new document
     delete duplicateData.updatedAt //remove the updatedAt field to create a new document
 
-    const newEducationIds = []
+    let newEducationIds = []
     if(Array.isArray(duplicateData.education) && duplicateData.education.length > 0){
         const cleanEducationList = duplicateData.education.map(({_id, createdAt, updatedAt, ...rest}) => rest)
         const newEducation = await Education.insertMany(cleanEducationList)
@@ -256,7 +256,7 @@ const duplicateResume = asyncHandler(async(req, res) => {
 
 const toggleResume = asyncHandler(async(req,res) => {
     const {resumeId} = req.params
-    const resume = await Resume.findOne({id: resumeId, owner: req.user?._id})
+    const resume = await Resume.findOne({_id: resumeId, owner: req.user?._id})
     if(!resume) throw ApiError(401, "resume not found")
     
     resume.isPublic = !resume.isPublic
@@ -275,7 +275,7 @@ const toggleResume = asyncHandler(async(req,res) => {
 
 const getPublicResume = asyncHandler(async(req, res) => {
     const {resumeId} = req.params
-    const resume = await Resume.findOne({_id: resumeId, owner: req.user?._id})
+    const resume = await Resume.findOne({_id: resumeId, isPublic: true})
     .select("-owner")
     .populate("education")
 

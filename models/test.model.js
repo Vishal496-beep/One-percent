@@ -7,7 +7,7 @@ const questionSchema = new Schema(
             required: true
         },
         options: {
-            type: String,
+            type: [String],
             required: true
         },
         correctAnswerIndex: {
