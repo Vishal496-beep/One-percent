@@ -1,9 +1,8 @@
-import {GeminiGenAi} from "@google/genai"
-import {asyncHandler} from "../utils/asyncHandler.js"
-import {ApiError} from "../utils/ApiError.js";
+import {GoogleGenAi} from "@google/genai"
+import {ApiError} from "../../utils/ApiError.js";
 
 
-const ai = new GeminiGenAi({apiKey: process.env.GEMINI_API_KEY})
+const ai = new GoogleGenAi({apiKey: process.env.GEMINI_API_KEY})
 /**
  * Sends a prompt to Gemini and returns parsed JSON array/object response
  * @param {string} prompt 
