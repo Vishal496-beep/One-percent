@@ -1,8 +1,8 @@
-import {GoogleGenAi} from "@google/genai"
-import {ApiError} from "../../utils/ApiError.js";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { ApiError } from "../../utils/ApiError.js";
 
-
-const ai = new GoogleGenAi({apiKey: process.env.GEMINI_API_KEY})
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 /**
  * Sends a prompt to Gemini and returns parsed JSON array/object response
  * @param {string} prompt 
@@ -11,9 +11,10 @@ const ai = new GoogleGenAi({apiKey: process.env.GEMINI_API_KEY})
 
 export const generateGeminiJsonResponse = async (prompt) => {
    try{
-     const response = await ai.models.generateContent({
-        model: "gemini-1.5",
-        content: prompt
+     const response = await model.generateContent({
+        model: "gemini-1.5-flash",
+        content: prompt,
+        generationConfig: { responseMimeType: "application/json" } // Guarantees valid JSON output
     })
 
     const aiResponseText = response?.text() || "Recieved empty response from jarves"
