@@ -6,8 +6,6 @@ import {Resume} from "../models/resume.model.js"
 import {ApiResponse} from "../utils/ApiResponse.js"
 import {generateGeminiJsonResponse} from "../src/services/ai.service.js"
 
-let ai = new GeminiGenAi({apiKey: process.env.GEMINI_API_KEY, model: "gemini-1.5"})
-
 const generateTest = asyncHandler(async(req, res) => {
    const userId = req.user?._id
    const {resumeId} = req.params;
@@ -26,10 +24,13 @@ const generateTest = asyncHandler(async(req, res) => {
       throw new ApiError(400, "You have exceded the limit of requests for generating tests. Please buy a premium plan to generate more tests.")
    }
    
+   if (!resume.skills || resume.skills.trim() === "") throw new ApiError(400, "Resume skills are missing. Please update your resume with relevant skills before generating a test.")
+   
+
    const prompt = [
       {
          role: "system",
-         content: `You are an expert technical interviewer. Analyze the following candidate resume data and generate a rigorous technical and project-based test consisting of 35 multiple-choice questions. 
+         contents: `You are an expert technical interviewer. Analyze the following candidate resume data and generate a rigorous technical and project-based test consisting of 35 multiple-choice questions. 
          Focus heavily on their declared skills, projects, tech stack, or any field which are listed on the resume (e.g., MERN, JavaScript, Node.js, React).
          you have to give a score and analysis by creating a report from 1 to 100 score . Also you have to give suggesstions to the candidate that which areas are most important to cover and focus on for their career growth. The test should be challenging and cover a wide range of topics relevant to the candidate's experience and skills.
          you must give candidate the best resource where they can follow and learn how would it improve for that search widely and platform names.
@@ -52,19 +53,16 @@ const generateTest = asyncHandler(async(req, res) => {
    ]
 
    const questionList = await generateGeminiJsonResponse(prompt)
+
+   if(!Array.isArray(questionList) || questionList.length === 0){
+      throw new ApiError(500, "Failed to generate test questions. Please try again Later")
+   }
    
-   const newTest = new Test.create({
+   const newTest = await Test.create({
       owner: userId,
         resume: resumeId,
         subject: resume.skills.split(",")[0] || "General",
-        questions: questionList,
-        score: 0,
-        isPassed: false,
-        improvementAreas: {
-            weakAreas: [],
-            actionableAreas: [],
-            recommendedResources: []
-        }
+        questions: questionList
    })
 
    return res
@@ -77,3 +75,11 @@ const generateTest = asyncHandler(async(req, res) => {
    )
 
 })
+
+
+
+
+export {
+generateTest
+}
+
