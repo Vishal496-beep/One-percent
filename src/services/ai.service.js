@@ -7,10 +7,10 @@ let getModel = async () => {
       const genAi = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       model = genAi.getGenerativeModel({
          model: "gemini-2.5-flash",
-         temperature: 0.7,
-         topP: 0.8,
          generationConfig: {
-            maxOutputTokens: 8271,
+            temperature: 0.7,
+            topP: 0.8,
+            maxOutputTokens: 8192,
             responseMimeType: "application/json"
          }
       })

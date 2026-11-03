@@ -21,6 +21,14 @@ const questionSchema = new Schema(
                 "Project-Based"
             ],
             required: true
+        },
+        selectedAnswerIndex: {
+            type: Number,
+            default: null
+        },
+        isSubmitted: {
+            type: Boolean,
+            default: false
         }
     }
 )
@@ -54,7 +62,7 @@ const testSchema = new Schema({
         type: Boolean,
         default: false
       },
-      improvementAreas: {
+     improvementAreas : {
         weakAreas: [String],
         actionableAreas: [String],
         recommendedResources: [String]

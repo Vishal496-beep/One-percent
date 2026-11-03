@@ -1,85 +1,201 @@
-import {asyncHandler} from "../utils/asyncHandler.js"
-import {ApiError} from "../utils/ApiError.js";
-import {User} from "../models/user.model.js"
-import {Test} from "../models/test.model.js";
-import {Resume} from "../models/resume.model.js"
-import {ApiResponse} from "../utils/ApiResponse.js"
-import {generateGeminiJsonResponse} from "../src/services/ai.service.js"
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/ApiError.js";
+import { Test } from "../models/test.model.js";
+import { Resume } from "../models/resume.model.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { generateGeminiJsonResponse } from "../src/services/ai.service.js";
 
-const generateTest = asyncHandler(async(req, res) => {
-   const userId = req.user?._id
-   const {resumeId} = req.params;
+const QUESTION_COUNT = 20;
 
-   if (!userId) {
-      throw new ApiError(401, "Unauthorized user not found")
-   }
-   
-   const resume = await Resume.findOne({_id: resumeId, owner: userId}).populate("education")
-   if (!resume) {
-      throw new ApiError(404, "Resume not found")
-   }
+const generateTest = asyncHandler(async (req, res) => {
+  const userId = req.user?._id;
+  const { resumeId } = req.params;
 
-   const previousTestCounts = await Test.countDocuments({resume: resumeId, owner:userId})
-   if(previousTestCounts >= 3){
-      throw new ApiError(400, "You have exceded the limit of requests for generating tests. Please buy a premium plan to generate more tests.")
-   }
-   
-   if (!resume.skills || resume.skills.trim() === "") throw new ApiError(400, "Resume skills are missing. Please update your resume with relevant skills before generating a test.")
-   
+  if (!userId) throw new ApiError(401, "Unauthorized");
 
-   const prompt = [
-      {
-         role: "system",
-         contents: `You are an expert technical interviewer. Analyze the following candidate resume data and generate a rigorous technical and project-based test consisting of 35 multiple-choice questions. 
-         Focus heavily on their declared skills, projects, tech stack, or any field which are listed on the resume (e.g., MERN, JavaScript, Node.js, React).
-         you have to give a score and analysis by creating a report from 1 to 100 score . Also you have to give suggesstions to the candidate that which areas are most important to cover and focus on for their career growth. The test should be challenging and cover a wide range of topics relevant to the candidate's experience and skills.
-         you must give candidate the best resource where they can follow and learn how would it improve for that search widely and platform names.
-         
+  const resume = await Resume.findOne({ _id: resumeId, owner: userId });
+  if (!resume) throw new ApiError(404, "Resume not found");
 
-         Resume Data:
-       - Summary: ${resume.summary}
-       - Skills: ${resume.skills}
-       - Projects: ${JSON.stringify(resume.projects)}
+  const previousTestCounts = await Test.countDocuments({
+    resume: resumeId,
+    owner: userId,
+  });
+  if (previousTestCounts >= 3) {
+    throw new ApiError(
+      400,
+      "You have exceeded the test generation limit. Please buy a premium plan to generate more tests."
+    );
+  }
 
-        You MUST return ONLY a valid JSON array of objects. No markdown formatting blocks around it if possible, or standard JSON. Each object must strictly follow this structure:
-       {
-        "question": "The question text here",
-        "options": ["Option A", "Option B", "Option C", "Option D"],
-        "correctAnswerIndex": 0, // Index of the correct option (0 to 3)
-        "type": "Project-Based" // or "core-Subject"
-       }`
-         
-      }
-   ]
+  // handles both string and array skills
+  const skillsText = Array.isArray(resume.skills)
+    ? resume.skills.join(", ")
+    : resume.skills || "";
+  if (skillsText.trim() === "") {
+    throw new ApiError(
+      400,
+      "Resume skills are missing. Please update your resume first."
+    );
+  }
 
-   const questionList = await generateGeminiJsonResponse(prompt)
+  const prompt = `You are an expert technical interviewer. Generate a rigorous test of exactly ${QUESTION_COUNT} multiple-choice questions based on this candidate's resume.
+Focus on their declared skills, projects, and tech stack. Mix core-subject questions with project-based questions.
 
-   if(!Array.isArray(questionList) || questionList.length === 0){
-      throw new ApiError(500, "Failed to generate test questions. Please try again Later")
-   }
-   
-   const newTest = await Test.create({
-      owner: userId,
-        resume: resumeId,
-        subject: resume.skills.split(",")[0] || "General",
-        questions: questionList
-   })
+Resume Data:
+- Summary: ${resume.summary}
+- Skills: ${skillsText}
+- Projects: ${JSON.stringify(resume.projects)}
 
-   return res
-   .status(201)
-   .json(
-      new ApiResponse(
-         newTest,
-         "Test generated successfully"
-      )
-   )
+Return ONLY a valid JSON array. Each element must have exactly these fields:
+- "question": string
+- "options": array of exactly 4 strings
+- "correctAnswerIndex": integer from 0 to 3
+- "type": either "Project-Based" or "core-Subject"
 
-})
+Example element:
+{"question": "What does useEffect do?", "options": ["A", "B", "C", "D"], "correctAnswerIndex": 1, "type": "core-Subject"}`;
+
+  const questionList = await generateGeminiJsonResponse(prompt);
+
+  if (!Array.isArray(questionList)) {
+    throw new ApiError(
+      500,
+      "Failed to generate test questions. Please try again later."
+    );
+  }
+
+  const validQuestions = questionList.filter(
+    (q) =>
+      typeof q.question === "string" &&
+      q.question.trim() &&
+      Array.isArray(q.options) &&
+      q.options.length === 4 &&
+      Number.isInteger(q.correctAnswerIndex) &&
+      q.correctAnswerIndex >= 0 &&
+      q.correctAnswerIndex < 4 &&
+      ["core-Subject", "Project-Based"].includes(q.type)
+  );
+
+  if (validQuestions.length < 10) {
+    throw new ApiError(500, "Generated test was incomplete. Please try again.");
+  }
+
+  const newTest = await Test.create({
+    owner: userId,
+    resume: resumeId,
+    subject: skillsText.split(",")[0].trim() || "General",
+    questions: validQuestions,
+  });
+
+  const safeTest = newTest.toObject();
+  safeTest.questions = safeTest.questions.map(
+    ({ correctAnswerIndex, ...q }) => q
+  );
+
+  return res
+    .status(201)
+    .json(new ApiResponse(200, safeTest, "Test generated successfully"));
+});
+
+const submitTest = asyncHandler(async (req, res) => {
+  //1. get userId, testId (params), answers (body)
+  // 2. validate: user exists, answers is an array
+  // 3. find the test (must belong to this user)
+  // 4. if not found, throw 404
+  // 5. if already submitted, throw error
+  // 6. if answers count != questions count, throw error
+  // 7. loop through questions, count correct answers
+  // 8. calculate score as a percentage
+  // 9. set isPassed, isSubmitted
+  // 10. save the test
+  // 11. send response
+
+  const userId = req.user?._id;
+  const { testId } = req.params;
+  const { answers } = req.body;
+
+  if (!userId) throw new ApiError(401, "Unauthorized user");
+  if (!Array.isArray(answers))
+    throw new ApiError(400, "Answers must be an array");
+  if (answers.length === 0)
+    throw new ApiError(400, "Answers array cannot be empty");
+  const test = await Test.findOne({ _id: testId, owner: userId });
+  if (!test)
+    throw new ApiError(400, "Test not found or does not belong to the user");
+  if (test.isSubmitted)
+    throw new ApiError(400, "Test has already been submitted");
+  if (answers.length !== test.questions.length)
+    throw new ApiError(
+      400,
+      "Number of answers does not match number of questions"
+    );
+
+  let count = 0;
+  let wrongAnswers = [];
+
+  test.questions.forEach((q, i) => {
+    q.selectedAnswerIndex = answers[i];
+    if (answers[i] === q.correctAnswerIndex) count++;
+    else wrongAnswers.push({ question: q.question, type: q.type });
+  });
+
+  test.score = Math.round((count / test.questions.length) * 100);
+  test.isPassed = test.score >= test.passingScore;
+  test.isSubmitted = true;
+
+  try{
+    if (wrongAnswers.length > 0) {
+    const analysisPrompt = `You are an expert technical interviewer and educator. Analyze the technical questions that a candidate answered incorrectly during an assessment.
+     ### Incorrect Questions & Candidate Context:
+      ${JSON.stringify(wrongAnswers)}
+    ### Instructions:
+   Provide structured, constructive, and actionable feedback to help the candidate improve their weak areas.
+   - Identify core concepts where the candidate showed weakness.
+   - Offer concrete, step-by-step guidance on how to master those concepts.
+   - Provide targeted learning resources with direct URLs where possible (e.g., official docs, well-known YouTube channels/playlists, or reputable tutorial sites).
+
+   ### Output Requirements:
+  Return ONLY a valid JSON object matching the exact structure below. Do not include markdown code fence formatting (\`\`\`json), commentary, or extra text.
+
+   {
+  "weakAreas": [
+    "High-level concept or domain (e.g., JavaScript Event Loop & Asynchronous Control Flow)"
+  ],
+  "actionableAreas": [
+    "Specific step or exercise to practice (e.g., Practice writing custom Promises and tracing microtask queue execution order in Node.js/Browser dev tools)"
+  ],
+  "recommendedResources": [
+    {
+      "title": "Clear, descriptive title of the resource (e.g., MDN Web Docs: Event Loop)",
+      "type": "Documentation | YouTube | Article | Course | Community",
+      "platform": "Platform or site name (e.g., MDN, Fireship, freeCodeCamp, YouTube)",
+      "url": "https://direct-or-search-link-to-resource.com"
+       }
+     ]
+   }`;
+
+   test.improvementAreas = await generateGeminiJsonResponse(analysisPrompt);
+  }
+  } catch (error) {
+    console.error("Error generating improvement areas:", error);
+    throw new ApiError(500, "Failed to generate improvement areas. Please try again later.");
+  }
+
+  test.save();
+
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(
+      200,
+      test,
+      "Test submitted successfully"
+    )
+  )
 
 
-
-
-export {
-generateTest
-}
-
+});
+export { 
+  generateTest, 
+  submitTest 
+};
