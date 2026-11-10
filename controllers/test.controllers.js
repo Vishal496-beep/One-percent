@@ -181,7 +181,7 @@ const submitTest = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Failed to generate improvement areas. Please try again later.");
   }
 
-  test.save();
+  await test.save();
 
   return res
   .status(200)

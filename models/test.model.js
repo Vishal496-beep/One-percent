@@ -66,6 +66,10 @@ const testSchema = new Schema({
         weakAreas: [String],
         actionableAreas: [String],
         recommendedResources: [String]
+      },
+      isSubmitted : {
+        type: Boolean,
+        default: false
       }
 }, {timestamps: true}
 )

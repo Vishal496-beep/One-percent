@@ -192,7 +192,7 @@ const deleteResume = asyncHandler(async(req,res) => {
         await Education.deleteMany({ _id: { $in: deletedResume.education } });
     }
 
-    await deletedResume.deleteOne();
+    await deletedResume.findOneAndDelete();
     return res
     .status(200)
     .json(
