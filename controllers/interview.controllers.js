@@ -4,7 +4,7 @@ import { Resume } from "../models/resume.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Test } from "../models/test.model.js";
-import { generateGeminiJsonResponse } from "../utils/generateGeminiJsonResponse.js";
+import { generateGeminiJsonResponse } from "../src/services/ai.service.js";
 
 const MAX_INTERVIEWS_PER_RESUME = 3; // Example limit, can be adjusted as needed
 const startInterview = asyncHandler(async (req, res) => {
@@ -207,13 +207,12 @@ const submitInterview = asyncHandler(async (req, res) => {
 
   await interview.save();
 
-  const qaList = interview.questions.map((q,i) => ({
-    number: i+1,
+  const qaList = interview.questions.map((q, i) => ({
+    number: i + 1,
     question: q.question,
     answer: q.userAnswer === "" ? "No answer provided" : q.userAnswer,
-    category: q.category
-  }))
-
+    category: q.category,
+  }));
 
   const prompt = `You are a strict but fair senior interviewer evaluating a ${interview.experienceLevel} candidate for a "${interview.jobTitle}" role.
 
@@ -248,14 +247,69 @@ Return ONLY a valid JSON object with no markdown, in exactly this shape:
 }
 
 "questions" must contain exactly ${qaList.length} objects, in the same order as the input.
-technicalRating and communicationRating are whole numbers from 1 to 10.`
+technicalRating and communicationRating are whole numbers from 1 to 10.`;
 
-const evaluation = await generateGeminiJsonResponse(prompt);
+  const evaluation = await generateGeminiJsonResponse(prompt);
 
-if(!evaluation || !Array.isArray(evaluation.questions) || evaluation.questions.length !== interview.questions.length){
-  throw new ApiError(500, "Failed to evaluate the interview answers");
-}
+  if (
+    !evaluation ||
+    !Array.isArray(evaluation.questions) ||
+    evaluation.questions.length !== interview.questions.length
+  ) {
+    throw new ApiError(500, "Failed to evaluate the interview answers");
+  }
 
+  //helpers: AI numbers and arrays cant be trusted
+
+  const clamp = (n, min, max) =>
+    Math.min(max, Math.max(min, Math.round(Number(n) || 0)));
+  const toStringArray = (arr) =>
+    Array.isArray(arr)
+      ? arr
+          .filter((s) => typeof s === "string" && s.trim() !== "")
+          .map((s) => s.trim())
+      : [];
+
+  //put feedback into each question and add up scores
+
+  let total = 0;
+  interview.questions.forEach((q, i) => {
+    const fb = evaluation.questions[i];
+    const score = q.userAnswer === "" ? 0 : clamp(fb?.score, 0, 100);
+
+    q.feedback = {
+      score,
+      strengths: toStringArray(fb?.strengths),
+      improvements: toStringArray(fb?.improvements),
+      sampleAnswer:
+        typeof fb?.sampleAnswer === "string" ? fb.sampleAnswer.trim() : "",
+    };
+    total += score;
+  });
+
+  //overall fields and status (the CODE calculates overallScore, not the AI)
+
+  interview.overallScore = Math.round(total / interview.questions.length);
+  interview.overallFeedback = {
+    summary: clamp(evaluation?.overall?.summary || ""),
+    technicalRating: clamp(evaluation?.overall?.technicalRating, 1, 10),
+    communicationRating: clamp(evaluation?.overall?.communicationRating, 1, 10),
+    keyStrengths: toStringArray(evaluation?.overall?.keyStrengths),
+    keyWeaknesses: toStringArray(evaluation?.overall?.keyWeaknesses),
+  };
+  interview.status = "completed";
+
+  await interview.save();
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        interview,
+        "Interview submitted and evaluated successfully"
+      )
+    );
 });
 
 export { startInterview, submitInterview };
